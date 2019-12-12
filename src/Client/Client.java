@@ -43,11 +43,11 @@ public class Client {
 
             output.close();
             input.close();
-            System.out.println("Port 1 da duoc nhan: " + port1);
-            System.out.println("Port 2 da duoc nhan: " + port2);
-            System.out.println(file+" da duoc gui tu server");
+            System.out.println("Port1 đã được nhận: " + port1);
+            System.out.println("Port2 đã được nhận: " + port2);
+            System.out.println(file+" đã được nhận từ server");
         } catch (IOException ex) {
-            System.out.println("Error: "+ex);
+            System.out.println("Lỗi nhận file: "+ex);
         }
 
     }
@@ -58,7 +58,7 @@ public class Client {
             osPort = socket.getOutputStream();
             DataOutputStream dosPort = new DataOutputStream(osPort);
             dosPort.writeInt(clientPort);
-            System.out.println("Send port to server: " + clientPort);
+            System.out.println("Gửi port đến server: " + clientPort);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -67,9 +67,9 @@ public class Client {
     public void createServerPeer(){
         try {
             serverSocket = new ServerSocket(clientPort);
-            System.out.println("Binding to port " + clientPort + ", please wait  ...");
-            System.out.println("Server started: " + serverSocket);
-            System.out.println("Waiting for a client ...");
+            System.out.println("Gán port cho Server Socket: " + clientPort + ", vui lòng đợi...");
+            System.out.println("Server đã được khởi động: " + serverSocket);
+            System.out.println("Đợi kết nối từ các client...");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -77,19 +77,13 @@ public class Client {
 
     public void createConnectToClients(){
         try{
-            do{
-                socket1 = new Socket(SERVER_IP, port1);
-                System.out.println("Connect: " + socket1);
-            }while(!socket1.isConnected());
-
-            do{
-                socket2 = new Socket(SERVER_IP, port2);
-                System.out.println("Connect: "+ socket2);
-            }while(!socket2.isConnected());
+            socket1 = new Socket(SERVER_IP, port1);
+            System.out.println("đã kết nối tới: " + socket1);
+            socket2 = new Socket(SERVER_IP, port2);
+            System.out.println("đã kết nối tới: "+ socket2);
 
         }catch (Exception e){
-            System.out.println("Error connect to clients");
-            System.out.println(e.getMessage());
+            System.out.println("Lỗi kết nối tới các client " + e);
         }
 
     }
@@ -97,20 +91,21 @@ public class Client {
     public static void main(String[] args) throws IOException, InterruptedException {
         try {
             Client client = new Client();
+
             Scanner sc = new Scanner(System.in);
-            System.out.println("Enter port client: ");
+            System.out.println("Nhập port để tạo Server Socket: ");
             client.clientPort = sc.nextInt();
+            client.createServerPeer();
             client.socket = new Socket(SERVER_IP, SERVER_PORT); // Connect to server
-            System.out.println("Connected: " + client.socket);
+            System.out.println("Đã kết nối tới: " + client.socket);
             client.sendPort();
             client.rcfile();
-            client.createServerPeer();
+
             client.createConnectToClients();
             //dir save
             String dir = client.filePath.substring(11, 12);
             ExecutorService executor = Executors.newFixedThreadPool(2);
             //rc file from clients;
-            System.out.println("bat dau nhan file");
 
             for(int i = 0; i < 2; i++){
                 Socket socket = client.serverSocket.accept();
@@ -126,7 +121,7 @@ public class Client {
 
 
         } catch (IOException ie) {
-            System.out.println("Can't connect to server");
+            System.out.println("Không thể kết nối tới server");
         } finally {
 
         }
@@ -154,22 +149,22 @@ class SendFileToClients extends Thread{
             doutstream.writeLong(mybytearray.length);
             doutstream.write(mybytearray, 0, mybytearray.length);
             doutstream.flush();
-            System.out.println(fileName+" send to client " + socket);
+            System.out.println(fileName+" gửi tới client: " + socket);
 
         } catch (Exception e) {
-            System.err.println("Khong co file");
+            System.err.println("Lỗi gửi file tới client");
             System.out.println(e.getMessage());
         }
     }
     @Override
     public void run() {
-        System.out.println("Processing: " + socket);
+        System.out.println("Đang tiến hành gửi file tới client: " + socket);
         try {
             sendFile();
         } catch (Exception e) {
-            System.err.println("Send file error!: " + e);
+            System.err.println("Gửi file tới client lỗi!: " + e);
         }
-        System.out.println("Complete processing: " + socket);
+        System.out.println("Gửi file tới client hoàn thành: " + socket);
     }
 
 }
@@ -183,7 +178,6 @@ class ReadFileFromClients extends Thread {
 
     public void rcfile() {
         try {
-            System.out.println("bat dau nhan nha");
             InputStream input = socket.getInputStream();
             DataInputStream clientData = new DataInputStream(input);
             String file = clientData.readUTF();
@@ -197,7 +191,7 @@ class ReadFileFromClients extends Thread {
                 output.write(buffer, 0, bytes);
                 size -= bytes;
             }
-            System.out.println(file+" da duoc gui tu client" + socket);
+            System.out.println(file+" đã được nhận từ client: " + socket);
 
             //output.close();
             //input.close();
@@ -212,13 +206,13 @@ class ReadFileFromClients extends Thread {
     @Override
 
     public void run() {
-        System.out.println("Processing: " + socket);
+        System.out.println("Bắt đầu nhận file từ client: " + socket);
         try {
             rcfile();
         } catch (Exception e) {
-            System.err.println(" rcfile error!: " + e);
+            System.err.println("Lỗi nhận file!: " + e);
         }
-        System.out.println("Complete processing: " + socket);
+        System.out.println("Hoàn thành nhận file: " + socket);
     }
 
 }

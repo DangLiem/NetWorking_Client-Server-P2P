@@ -24,19 +24,19 @@ public class Server {
         //Server.listSocket = new ArrayList<>();
         Server.listClient = new HashMap<>();
         try {
-            System.out.println("Binding to port " + SERVER_PORT + ", please wait  ...");
+            System.out.println("Gán port cho Server Socket " + SERVER_PORT + ", vui lòng đợi ...");
             serverSocket = new ServerSocket(SERVER_PORT);
-            System.out.println("Server started: " + serverSocket);
-            System.out.println("Waiting for a client ...");
+            System.out.println("Server đã khởi động: " + serverSocket);
+            System.out.println("Đợi kết nối từ client...");
             while (true) {
                 try {
                     Socket socket = serverSocket.accept();
-                    System.out.println("Client accepted: " + socket);
+                    System.out.println("Chấp nhận kết nối với client: " + socket);
                     //get port from client
                     InputStream input = socket.getInputStream();
                     DataInputStream dos = new DataInputStream(input);
                     Integer portClient = dos.readInt();
-                    System.out.println("Port from Client: " + portClient);
+                    System.out.println("Port từ Client: " + portClient);
                     listClient.put(portClient, socket);
                     //listSocket.add(socket);
 //                    if(listSocket.size() == 3)
@@ -44,7 +44,7 @@ public class Server {
                     if(listClient.size() == 3)
                         break;
                 } catch (IOException e) {
-                    System.err.println(" Connection Error: " + e);
+                    System.err.println("Kết nỗi  " + e);
                 }
             }
 
@@ -61,17 +61,7 @@ public class Server {
                 String filePath = "src/Server/SharedFolder/";
                 Integer fileOut = 1;
                 Integer[] ports = new Integer[2];
-//                for (Socket socketItem : listSocket) {
-//                    String out = Integer.toString(fileOut);
-//                    String fileName = filePath + out + ".txt";
-//                    WorkerThread hander = new WorkerThread(socketItem, fileName);
-//                    executor.execute(hander);
-//                    fileOut++;
-//                }
                 for(Map.Entry m:listClient.entrySet()){
-//                    System.out.println(m.getKey());
-//                    System.out.println(m.getValue());
-//                    System.out.println("-----------------------------");
                     String out = Integer.toString(fileOut);
                     String fileName = filePath + out + ".jpg";
 
@@ -94,7 +84,7 @@ public class Server {
 
         } catch (Exception e){
             System.out.println(e.getMessage());
-            System.out.println("Error send file to clients");
+            System.out.println("Lỗi gửi file đến các client");
         }
 
     }
@@ -112,13 +102,13 @@ class WorkerThread extends Thread {
     }
 
     public void run() {
-        System.out.println("Processing: " + socket);
+        System.out.println("Đang xử lý: " + socket);
         try {
             sendFile();
         } catch (Exception e) {
-            System.err.println("Send file error!: " + e);
+            System.err.println("Gửi file tới client lỗi!: " + e);
         }
-        System.out.println("Complete processing: " + socket);
+        System.out.println("Gửi file hoàn thành: " + socket);
     }
 
     public void sendFile() {
@@ -140,9 +130,9 @@ class WorkerThread extends Thread {
             doutstream.writeLong(mybytearray.length);
             doutstream.write(mybytearray, 0, mybytearray.length);
             doutstream.flush();
-            System.out.println(fileName+" send to client ");
+            System.out.println(fileName+" đã gửi tới client " + socket);
         } catch (Exception e) {
-            System.err.println("Khong co file");
+            System.err.println("Không có file " + fileName);
         }
     }
 }
