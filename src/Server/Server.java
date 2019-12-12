@@ -1,17 +1,19 @@
 package Server;
 
+import org.apache.commons.io.IOUtils;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 public class Server {
     public static final int NUM_OF_THREAD = 3;
     public final static int SERVER_PORT = 8686;
+    public static final int SIZE_BUFF = 4096;
+    public static final int NUM_SPLIT = 3;
+    public static final String PATH = "src/Server/SharedFolder/";
     public static ArrayList<Socket> listSocket;
     public static HashMap<Integer, Socket> listClient;
 
@@ -57,13 +59,19 @@ public class Server {
         }
         try {
             if (listClient.size() == 3){
+                // bat dau gui file
+               // String filePath = "src/Server/SharedFolder/";
+                System.out.println("Nhập file cần cập nhật: ");
+                Scanner sc = new Scanner(System.in);
+                String fileUpdate = sc.nextLine();
+                splitFile(PATH + fileUpdate);
+                sc.close();
 
-                String filePath = "src/Server/SharedFolder/";
                 Integer fileOut = 1;
                 Integer[] ports = new Integer[2];
                 for(Map.Entry m:listClient.entrySet()){
                     String out = Integer.toString(fileOut);
-                    String fileName = filePath + out + ".jpg";
+                    String fileName = PATH + out;
 
                     // cac port con lai
                     Iterator<Integer> itr = listClient.keySet().iterator();
@@ -87,6 +95,55 @@ public class Server {
             System.out.println("Lỗi gửi file đến các client");
         }
 
+    }
+    public static void splitFile(String fileName) throws IOException {
+        RandomAccessFile raf = new RandomAccessFile(fileName, "r");
+        long numSplits = NUM_SPLIT;
+        long sourceSize = raf.length();
+        long bytesPerSplit = sourceSize/numSplits;
+        long remainingBytes = sourceSize % numSplits;
+        int maxReadBufferSize = SIZE_BUFF;
+        for(int destIx=1; destIx <= numSplits; destIx++) {
+            BufferedOutputStream bw = new BufferedOutputStream(new FileOutputStream(PATH+destIx));
+            if(bytesPerSplit > maxReadBufferSize) {
+                long numReads = bytesPerSplit/maxReadBufferSize;
+                long numRemainingRead = bytesPerSplit % maxReadBufferSize;
+                for(int i=0; i<numReads; i++) {
+                    readWrite(raf, bw, maxReadBufferSize);
+                }
+                if(numRemainingRead > 0) {
+                    readWrite(raf, bw, numRemainingRead);
+                }
+            }else {
+                readWrite(raf, bw, bytesPerSplit);
+            }
+            bw.close();
+        }
+        if(remainingBytes > 0) {
+            BufferedOutputStream bw = new BufferedOutputStream(new FileOutputStream(PATH+(numSplits+1)));
+            readWrite(raf, bw, remainingBytes);
+            bw.close();
+            IOCopier.joinFiles(new File(PATH+"5"), new File[] {
+                    new File(PATH+"3"), new File(PATH+"4")});
+            File f1 = new File(PATH+"3");
+            boolean b = f1.delete();
+           // System.out.println("Delete file 1 remaining success.");
+            File f2 = new File(PATH+"4");
+            boolean c = f2.delete();
+          //  System.out.println("Delete file 2 remaining success.");
+            File f3 = new File(PATH+"5");
+            File f4 = new File(PATH+"3");
+            boolean d = f3.renameTo(f4);
+            f3.delete();
+        }
+        raf.close();
+    }
+    static void readWrite(RandomAccessFile raf, BufferedOutputStream bw, long numBytes) throws IOException {
+        byte[] buf = new byte[(int) numBytes];
+        int val = raf.read(buf);
+        if(val != -1) {
+            bw.write(buf);
+        }
     }
 }
 
@@ -133,6 +190,36 @@ class WorkerThread extends Thread {
             System.out.println(fileName+" đã gửi tới client " + socket);
         } catch (Exception e) {
             System.err.println("Không có file " + fileName);
+        }
+    }
+}
+class IOCopier {
+    public static void joinFiles(File destination, File[] sources)
+            throws IOException {
+        OutputStream output = null;
+        try {
+            output = createAppendableStream(destination);
+            for (File source : sources) {
+                appendFile(output, source);
+            }
+        } finally {
+            IOUtils.closeQuietly(output);
+        }
+    }
+
+    private static BufferedOutputStream createAppendableStream(File destination)
+            throws FileNotFoundException {
+        return new BufferedOutputStream(new FileOutputStream(destination, true));
+    }
+
+    private static void appendFile(OutputStream output, File source)
+            throws IOException {
+        InputStream input = null;
+        try {
+            input = new BufferedInputStream(new FileInputStream(source));
+            IOUtils.copy(input, output);
+        } finally {
+            IOUtils.closeQuietly(input);
         }
     }
 }

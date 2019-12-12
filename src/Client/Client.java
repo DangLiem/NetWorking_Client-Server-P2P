@@ -1,5 +1,7 @@
 package Client;
 
+import org.apache.commons.io.IOUtils;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -30,8 +32,8 @@ public class Client {
             port1 = clientData.readInt();
             port2 = clientData.readInt();
             String file = clientData.readUTF();
-            String dir = file.substring(0, 1);
-            filePath = "src/Client/" + dir + "/" + file;
+            //String dir = file.substring(0, 1);
+            filePath = "src/Client/"+file;
             OutputStream output = new FileOutputStream(filePath);
             long size = clientData.readLong();
             int bytes;
@@ -119,6 +121,8 @@ public class Client {
             SendFileToClients sendFileToClient2 = new SendFileToClients(client.socket2, client.filePath);
             sendFileToClient2.start();
 
+            MergerFile mergerFile = new MergerFile();
+            mergerFile.start();
 
         } catch (IOException ie) {
             System.out.println("Không thể kết nối tới server");
@@ -181,8 +185,10 @@ class ReadFileFromClients extends Thread {
             InputStream input = socket.getInputStream();
             DataInputStream clientData = new DataInputStream(input);
             String file = clientData.readUTF();
-            //  String dir = file.substring(0, 1);
-            String filePath = "src/Client/" + dir + "/" + file;
+           // dir = file.substring(0, 1);
+            String filePath = "src/Client/" + file;
+          //  String filePath = "src/Client/" +  file;
+
             OutputStream output = new FileOutputStream(filePath);
             long size = clientData.readLong();
             int bytes;
@@ -215,4 +221,65 @@ class ReadFileFromClients extends Thread {
         System.out.println("Hoàn thành nhận file: " + socket);
     }
 
+}
+
+class IOCopier {
+    public static void joinFiles(File destination, File[] sources)
+            throws IOException {
+        OutputStream output = null;
+        try {
+            output = createAppendableStream(destination);
+            for (File source : sources) {
+                appendFile(output, source);
+            }
+        } finally {
+            IOUtils.closeQuietly(output);
+        }
+    }
+
+    private static BufferedOutputStream createAppendableStream(File destination)
+            throws FileNotFoundException {
+        return new BufferedOutputStream(new FileOutputStream(destination, true));
+    }
+
+    private static void appendFile(OutputStream output, File source)
+            throws IOException {
+        InputStream input = null;
+        try {
+            input = new BufferedInputStream(new FileInputStream(source));
+            IOUtils.copy(input, output);
+        } finally {
+            IOUtils.closeQuietly(input);
+        }
+    }
+}
+
+class MergerFile extends Thread{
+    public static void mergeFile(String file1, String file2, String file3, String result) throws IOException{
+        IOCopier.joinFiles(new File(result), new File[] {
+                new File(file1), new File(file2), new File(file3)});
+        File f1 = new File(file1);
+        boolean b = f1.delete();
+        File f2 = new File(file2);
+        boolean c = f2.delete();
+        File f3 = new File(file3);
+        boolean d = f3.delete();
+    }
+    @Override
+    public void run() {
+        File file1 = new File("src/Client/1");
+        File file2 = new File("src/Client/2");
+        File file3 = new File("src/Client/3");
+        while(true){
+            if(file1.exists() && file2.exists() && file3.exists()){
+                try {
+                    mergeFile("src/Client/1", "src/Client/2", "src/Client/3", "src/Client/fileUpdate.mp3");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                break;
+            }
+        }
+
+    }
 }
