@@ -17,10 +17,13 @@ public class Client {
     public Socket socket; // socket cua chinh no
     public int port1; //port cua client 1
     public int port2; //port cua client 2
+    public String ip1; //ip cua client 1
+    public String ip2; //ip cua client 2
     public Socket socket1; // socket ket noi den client 1
     public  Socket socket2; // socket ket noi den client 2
     public  ServerSocket serverSocket;
     public String filePath;
+    public String fileUpdateOut;
 
     ArrayList<Socket> listSocket = new ArrayList<>();
 
@@ -31,6 +34,9 @@ public class Client {
             DataInputStream clientData = new DataInputStream(input);
             port1 = clientData.readInt();
             port2 = clientData.readInt();
+            ip1 = clientData.readUTF();
+            ip2 = clientData.readUTF();
+            fileUpdateOut = clientData.readUTF();
             String file = clientData.readUTF();
             //String dir = file.substring(0, 1);
             filePath = "src/Client/"+file;
@@ -44,7 +50,7 @@ public class Client {
             }
 
             output.close();
-            input.close();
+            //input.close();
             System.out.println("Port1 đã được nhận: " + port1);
             System.out.println("Port2 đã được nhận: " + port2);
             System.out.println(file+" đã được nhận từ server");
@@ -79,9 +85,9 @@ public class Client {
 
     public void createConnectToClients(){
         try{
-            socket1 = new Socket(SERVER_IP, port1);
+            socket1 = new Socket(ip1, port1);
             System.out.println("đã kết nối tới: " + socket1);
-            socket2 = new Socket(SERVER_IP, port2);
+            socket2 = new Socket(ip2, port2);
             System.out.println("đã kết nối tới: "+ socket2);
 
         }catch (Exception e){
@@ -121,7 +127,7 @@ public class Client {
             SendFileToClients sendFileToClient2 = new SendFileToClients(client.socket2, client.filePath);
             sendFileToClient2.start();
 
-            MergerFile mergerFile = new MergerFile();
+            MergerFile mergerFile = new MergerFile(client.socket, client.fileUpdateOut);
             mergerFile.start();
 
         } catch (IOException ie) {
@@ -255,6 +261,13 @@ class IOCopier {
 }
 
 class MergerFile extends Thread{
+    private String result;
+    private Socket socket;
+    public MergerFile(Socket socket, String result) {
+        this.result = result;
+        this.socket = socket;
+    }
+
     public static void mergeFile(String file1, String file2, String file3, String result) throws IOException{
         IOCopier.joinFiles(new File(result), new File[] {
                 new File(file1), new File(file2), new File(file3)});
@@ -265,6 +278,17 @@ class MergerFile extends Thread{
         File f3 = new File(file3);
         boolean d = f3.delete();
     }
+    public void sendNotification(){
+        OutputStream send = null;
+        try {
+            send = socket.getOutputStream();
+            DataOutputStream ok = new DataOutputStream(send);
+            ok.writeUTF("done");
+            System.out.println("Gửi xác nhận cập nhật file thành công tới server");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
     @Override
     public void run() {
         File file1 = new File("src/Client/1");
@@ -273,7 +297,9 @@ class MergerFile extends Thread{
         while(true){
             if(file1.exists() && file2.exists() && file3.exists()){
                 try {
-                    mergeFile("src/Client/1", "src/Client/2", "src/Client/3", "src/Client/fileUpdate.mp3");
+                    mergeFile("src/Client/1", "src/Client/2", "src/Client/3", "src/Client/" + result);
+                    System.out.println("Hợp file thành công");
+                    sendNotification();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

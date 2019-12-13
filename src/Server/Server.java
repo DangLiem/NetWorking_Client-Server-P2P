@@ -9,15 +9,17 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 public class Server {
-    public static final int NUM_OF_THREAD = 3;
+    public static final int NUM_OF_THREAD = 6;
     public final static int SERVER_PORT = 8686;
     public static final int SIZE_BUFF = 4096;
     public static final int NUM_SPLIT = 3;
     public static final String PATH = "src/Server/SharedFolder/";
-    public static ArrayList<Socket> listSocket;
+
     public static HashMap<Integer, Socket> listClient;
+    public static HashMap<Integer, String> listIp;
 
-
+    public static long time;
+    public static long startTime;
     public static void main(String[] args) throws IOException {
 
         // tao thread pool, su dung method newFixedThreadPool trong Executors de gioi han thread la 3
@@ -25,6 +27,7 @@ public class Server {
         ServerSocket serverSocket = null;
         //Server.listSocket = new ArrayList<>();
         Server.listClient = new HashMap<>();
+        Server.listIp = new HashMap<>();
         try {
             System.out.println("Gán port cho Server Socket " + SERVER_PORT + ", vui lòng đợi ...");
             serverSocket = new ServerSocket(SERVER_PORT);
@@ -34,15 +37,16 @@ public class Server {
                 try {
                     Socket socket = serverSocket.accept();
                     System.out.println("Chấp nhận kết nối với client: " + socket);
+                    String ipRemote = socket.getRemoteSocketAddress().toString();
+                    int indexSub = ipRemote.lastIndexOf(":");
+                    ipRemote = ipRemote.substring(1, indexSub);
                     //get port from client
                     InputStream input = socket.getInputStream();
                     DataInputStream dos = new DataInputStream(input);
                     Integer portClient = dos.readInt();
                     System.out.println("Port từ Client: " + portClient);
                     listClient.put(portClient, socket);
-                    //listSocket.add(socket);
-//                    if(listSocket.size() == 3)
-//                        break;
+                    listIp.put(portClient, ipRemote);
                     if(listClient.size() == 3)
                         break;
                 } catch (IOException e) {
@@ -64,31 +68,37 @@ public class Server {
                 System.out.println("Nhập file cần cập nhật: ");
                 Scanner sc = new Scanner(System.in);
                 String fileUpdate = sc.nextLine();
+                startTime = System.nanoTime();
                 splitFile(PATH + fileUpdate);
                 sc.close();
 
                 Integer fileOut = 1;
                 Integer[] ports = new Integer[2];
+                String[] ip = new String[2];
                 for(Map.Entry m:listClient.entrySet()){
                     String out = Integer.toString(fileOut);
                     String fileName = PATH + out;
 
-                    // cac port con lai
+                    // cac port va ip con lai
                     Iterator<Integer> itr = listClient.keySet().iterator();
                     int index = 0;
                     while(itr.hasNext()){
                         Integer port = itr.next();
                         if(port != m.getKey()){
                             ports[index] = port;
+                            ip[index] = listIp.get(port);
                             index++;
                         }
                     }
-                    WorkerThread hander = new WorkerThread((Socket) m.getValue(), fileName, ports);
+                    WorkerThread hander = new WorkerThread((Socket) m.getValue(), fileName, ports, ip, fileUpdate);
                     executor.execute(hander);
+                    Notification notification = new Notification((Socket) m.getValue());
+                    executor.execute(notification);
                     fileOut++;
                 }
 
             }
+
 
         } catch (Exception e){
             System.out.println(e.getMessage());
@@ -151,11 +161,16 @@ class WorkerThread extends Thread {
     private Socket socket;
     private String fileName;
     private Integer[] ports = new Integer[2]; // danh sach cac port con lai
-
-    public WorkerThread(Socket socket, String fileName, Integer[] p) {
+    private String[] ip = new String[2];
+    private String fileOut;
+    public WorkerThread(Socket socket, String fileName, Integer[] p, String[] ip, String fileOut) {
         this.socket = socket;
         this.fileName = fileName;
-        for(int i = 0; i < p.length; i++) this.ports[i] = p[i];
+        for(int i = 0; i < p.length; i++){
+            this.ports[i] = p[i];
+            this.ip[i] = ip[i];
+        }
+        this.fileOut = fileOut;
     }
 
     public void run() {
@@ -183,6 +198,12 @@ class WorkerThread extends Thread {
             for(int i = 0; i < 2; i++){
                 doutstream.writeInt(ports[i]);
             }
+            //gui lan luot cac ip
+            for(int i = 0; i < 2; i++){
+                doutstream.writeUTF(ip[i]);
+            }
+            //gui file out
+            doutstream.writeUTF(fileOut);
             doutstream.writeUTF(file.getName());
             doutstream.writeLong(mybytearray.length);
             doutstream.write(mybytearray, 0, mybytearray.length);
@@ -192,7 +213,42 @@ class WorkerThread extends Thread {
             System.err.println("Không có file " + fileName);
         }
     }
+
+
 }
+class Notification extends Thread{
+    private Socket socket;
+
+    public Notification(Socket socket) {
+        this.socket = socket;
+    }
+    public void notification(){
+        long result = 0;
+        InputStream input = null;
+        try {
+            input = socket.getInputStream();
+            DataInputStream dos = new DataInputStream(input);
+            String confirm = dos.readUTF();
+            if(confirm.equals("done")){
+                result = System.nanoTime();
+                Server.time = result - Server.startTime;
+                System.out.println("Client updated: " + Server.time + " , " + socket);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void run() {
+        try {
+            notification();
+        } catch (Exception e) {
+            System.err.println("Lỗi xác nhận cập nhật!: " + e);
+        }
+    }
+}
+
 class IOCopier {
     public static void joinFiles(File destination, File[] sources)
             throws IOException {
