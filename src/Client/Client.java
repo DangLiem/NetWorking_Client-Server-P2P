@@ -25,6 +25,7 @@ public class Client {
     public String filePath;
     public String fileUpdateOut;
 
+    public static int checkCountRcFileFromClients = 0;
     ArrayList<Socket> listSocket = new ArrayList<>();
 
     public void rcfile() {
@@ -191,9 +192,9 @@ class ReadFileFromClients extends Thread {
             InputStream input = socket.getInputStream();
             DataInputStream clientData = new DataInputStream(input);
             String file = clientData.readUTF();
-           // dir = file.substring(0, 1);
+            // dir = file.substring(0, 1);
             String filePath = "src/Client/" + file;
-          //  String filePath = "src/Client/" +  file;
+            //  String filePath = "src/Client/" +  file;
 
             OutputStream output = new FileOutputStream(filePath);
             long size = clientData.readLong();
@@ -203,6 +204,7 @@ class ReadFileFromClients extends Thread {
                 output.write(buffer, 0, bytes);
                 size -= bytes;
             }
+
             System.out.println(file+" đã được nhận từ client: " + socket);
 
             //output.close();
@@ -225,6 +227,8 @@ class ReadFileFromClients extends Thread {
             System.err.println("Lỗi nhận file!: " + e);
         }
         System.out.println("Hoàn thành nhận file: " + socket);
+        Client.checkCountRcFileFromClients++;
+        System.out.println(Client.checkCountRcFileFromClients);
     }
 
 }
@@ -291,11 +295,12 @@ class MergerFile extends Thread{
     }
     @Override
     public void run() {
-        File file1 = new File("src/Client/1");
-        File file2 = new File("src/Client/2");
-        File file3 = new File("src/Client/3");
+//        File file1 = new File("src/Client/1");
+//        File file2 = new File("src/Client/2");
+//        File file3 = new File("src/Client/3");
         while(true){
-            if(file1.exists() && file2.exists() && file3.exists()){
+            System.out.println("Test cout: " + Client.checkCountRcFileFromClients);
+            if(Client.checkCountRcFileFromClients == 2){
                 try {
                     mergeFile("src/Client/1", "src/Client/2", "src/Client/3", "src/Client/" + result);
                     System.out.println("Hợp file thành công");
